@@ -1,0 +1,26 @@
+{
+  "name": "pkg6/apidoc",
+  "description": "Generate documentation for php API based application. No dependency. No framework required.",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "zhiqiang",
+      "email": "zhiqiang2033@gmail.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.3.2",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Pkg6\\Apidoc\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Pkg6\\Apidoc\\Tests\\": "tests/"
+    }
+  }
+}
