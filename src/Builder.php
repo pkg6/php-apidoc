@@ -2,6 +2,9 @@
 
 namespace Pkg6\Apidoc;
 
+use Pkg6\Apidoc\Exceptions\Exception;
+use Pkg6\Apidoc\View\JsonView;
+
 class Builder
 {
     /**
@@ -9,7 +12,7 @@ class Builder
      *
      * @var string
      */
-    const VERSION = 'dev';
+    const VERSION = '0.1.0';
 
     /**
      * Classes collection
@@ -42,7 +45,7 @@ class Builder
      * Template file path
      * @var string
      **/
-    protected $template_path   = __DIR__.'/Resources/views/default';
+    protected $template_path;
 
     /**
      * Template object
@@ -54,8 +57,12 @@ class Builder
      * Constructor
      *
      * @param array $st_classes
+     * @param $s_output_dir
+     * @param string $title
+     * @param string $s_output_file
+     * @param null $template_path
      */
-    public function __construct(array $st_classes, $s_output_dir, $title = 'php-apidoc', $s_output_file = 'index.html', $template_path = null)
+    public function __construct(array $st_classes, $s_output_dir, $title = 'apidoc', $s_output_file = 'index.html', $template_path = null)
     {
         $this->_st_classes = $st_classes;
         $this->_output_dir = $s_output_dir;
@@ -64,6 +71,8 @@ class Builder
 
         if ($template_path) {
             $this->template_path = $template_path;
+        } else {
+            $this->template_path = __DIR__ . '/Resources/views/default';
         }
 
         $this->o_template = new Template();
@@ -83,6 +92,12 @@ class Builder
         return end($st_output);
     }
 
+    /**
+     * @param $data
+     * @param $file
+     * @return void
+     * @throws Exception
+     */
     protected function saveTemplate($data, $file)
     {
         $this->o_template->assign('content', $data);
@@ -90,15 +105,15 @@ class Builder
         $this->o_template->assign('date', date('Y-m-d, H:i:s'));
         $this->o_template->assign('version', static::VERSION);
 
-        $newContent = $this->o_template->parse($this->template_path.'/index.html');
+        $newContent = $this->o_template->parse($this->template_path . '/index.html');
 
         if (!is_dir($this->_output_dir)) {
             if (!mkdir($this->_output_dir)) {
                 throw new Exception('Cannot create directory');
             }
         }
-        if (!file_put_contents($this->_output_dir.'/'.$file, $newContent)) {
-            throw new Exception('Cannot save the content to '.$this->_output_dir);
+        if (!file_put_contents($this->_output_dir . '/' . $file, $newContent)) {
+            throw new Exception('Cannot save the content to ' . $this->_output_dir);
         }
     }
 
@@ -106,6 +121,7 @@ class Builder
      * Generate the content of the documentation
      *
      * @return boolean
+     * @throws Exception
      */
     protected function generateTemplate()
     {
@@ -120,9 +136,9 @@ class Builder
             foreach ($methods as $name => $docs) {
                 if (isset($docs['ApiDescription'][0]['section'])) {
                     $section = $docs['ApiDescription'][0]['section'];
-                }elseif(isset($docs['ApiSector'][0]['name'])){
+                } elseif (isset($docs['ApiSector'][0]['name'])) {
                     $section = $docs['ApiSector'][0]['name'];
-                }else{
+                } else {
                     $section = $class;
                 }
                 if (0 === count($docs)) {
@@ -132,16 +148,16 @@ class Builder
                 $sampleOutput = $this->generateSampleOutput($docs, $counter);
 
                 $tr = array(
-                    '{{ elt_id }}'                  => $counter,
-                    '{{ method }}'                  => $this->generateBadgeForMethod($docs),
-                    '{{ route }}'                   => $docs['ApiRoute'][0]['name'],
-                    '{{ description }}'             => $docs['ApiDescription'][0]['description'],
-                    '{{ headers }}'                 => $this->generateHeadersTemplate($counter, $docs),
-                    '{{ parameters }}'              => $this->generateParamsTemplate($counter, $docs),
-                    '{{ body }}'                    => $this->generateBodyTemplate($counter, $docs),
-                    '{{ sandbox_form }}'            => $this->generateSandboxForm($docs, $counter),
+                    '{{ elt_id }}' => $counter,
+                    '{{ method }}' => $this->generateBadgeForMethod($docs),
+                    '{{ route }}' => $docs['ApiRoute'][0]['name'],
+                    '{{ description }}' => $docs['ApiDescription'][0]['description'],
+                    '{{ headers }}' => $this->generateHeadersTemplate($counter, $docs),
+                    '{{ parameters }}' => $this->generateParamsTemplate($counter, $docs),
+                    '{{ body }}' => $this->generateBodyTemplate($counter, $docs),
+                    '{{ sandbox_form }}' => $this->generateSandboxForm($docs, $counter),
                     '{{ sample_response_headers }}' => $sampleOutput[0],
-                    '{{ sample_response_body }}'    => $sampleOutput[1]
+                    '{{ sample_response_body }}' => $sampleOutput[1]
                 );
 
                 $template[$section][] = strtr($partial_template, $tr);
@@ -164,9 +180,9 @@ class Builder
     /**
      * Generate the sample output
      *
-     * @param  array   $st_params
-     * @param  integer $counter
-     * @return string
+     * @param array $st_params
+     * @param integer $counter
+     * @return array
      */
     protected function generateSampleOutput($st_params, $counter)
     {
@@ -178,8 +194,8 @@ class Builder
             foreach ($st_params['ApiReturn'] as $params) {
                 if (in_array($params['type'], array('object', 'array(object) ', 'array', 'string', 'boolean', 'integer', 'number')) && isset($params['sample'])) {
                     $tr = array(
-                        '{{ elt_id }}'      => $counter,
-                        '{{ response }}'    => $params['sample'],
+                        '{{ elt_id }}' => $counter,
+                        '{{ response }}' => $params['sample'],
                         '{{ description }}' => '',
                     );
                     if (isset($params['description'])) {
@@ -192,17 +208,17 @@ class Builder
             $responseBody = implode(PHP_EOL, $ret);
         }
 
-        if(!isset($st_params['ApiReturnHeaders'])) {
+        if (!isset($st_params['ApiReturnHeaders'])) {
             $responseHeaders = '';
         } else {
             $ret = [];
             $partial_template = $this->loadPartialTemplate('sampleReponseHeaderTpl');
 
             foreach ($st_params['ApiReturnHeaders'] as $headers) {
-                if(isset($headers['sample'])) {
+                if (isset($headers['sample'])) {
                     $tr = array(
-                        '{{ elt_id }}'      => $counter,
-                        '{{ response }}'    => $headers['sample'],
+                        '{{ elt_id }}' => $counter,
+                        '{{ response }}' => $headers['sample'],
                         '{{ description }}' => ''
                     );
 
@@ -218,14 +234,13 @@ class Builder
 
     /**
      * Generates the template for headers
-     * @param  int          $id
-     * @param  array        $st_params
+     * @param int $id
+     * @param array $st_params
      * @return void|string
      */
     protected function generateHeadersTemplate($id, $st_params)
     {
-        if (!isset($st_params['ApiHeaders']))
-        {
+        if (!isset($st_params['ApiHeaders'])) {
             return;
         }
 
@@ -234,9 +249,9 @@ class Builder
 
         foreach ($st_params['ApiHeaders'] as $params) {
             $tr = array(
-                '{{ name }}'        => $params['name'],
-                '{{ type }}'        => $params['type'],
-                '{{ nullable }}'    => @$params['nullable'] == '1' ? 'No' : 'Yes',
+                '{{ name }}' => $params['name'],
+                '{{ type }}' => $params['type'],
+                '{{ nullable }}' => @$params['nullable'] == '1' ? 'No' : 'Yes',
                 '{{ description }}' => @$params['description'],
             );
             $body[] = strtr($partial_template, $tr);
@@ -249,14 +264,13 @@ class Builder
     /**
      * Generates the template for parameters
      *
-     * @param  int         $id
-     * @param  array       $st_params
+     * @param int $id
+     * @param array $st_params
      * @return void|string
      */
     protected function generateParamsTemplate($id, $st_params)
     {
-        if (!isset($st_params['ApiParams']))
-        {
+        if (!isset($st_params['ApiParams'])) {
             return;
         }
 
@@ -266,14 +280,14 @@ class Builder
 
         foreach ($st_params['ApiParams'] as $params) {
             $tr = array(
-                '{{ name }}'        => $params['name'],
-                '{{ type }}'        => $params['type'],
-                '{{ nullable }}'    => @$params['nullable'] == '1' ? 'No' : 'Yes',
+                '{{ name }}' => $params['name'],
+                '{{ type }}' => $params['type'],
+                '{{ nullable }}' => @$params['nullable'] == '1' ? 'No' : 'Yes',
                 '{{ description }}' => @$params['description'],
             );
 
             if (isset($params['sample'])) {
-                $tr['{{ type }}'].= ' '.strtr($paramSampleBtnTpl, array('{{ sample }}' => $params['sample']));
+                $tr['{{ type }}'] .= ' ' . strtr($paramSampleBtnTpl, array('{{ sample }}' => $params['sample']));
             }
 
             $body[] = strtr($paramContentTpl, $tr);
@@ -285,14 +299,13 @@ class Builder
     /**
      * Generate POST body template
      *
-     * @param  int      $id
-     * @param  array    $body
+     * @param int $id
+     * @param $docs
      * @return void|string
      */
     private function generateBodyTemplate($id, $docs)
     {
-        if (!isset($docs['ApiBody']))
-        {
+        if (!isset($docs['ApiBody'])) {
             return;
         }
 
@@ -300,7 +313,7 @@ class Builder
 
         return strtr($this->loadPartialTemplate('samplePostBodyTpl'), array(
             '{{ elt_id }}' => $id,
-            '{{ body }}' => $body['sample']
+            '{{ body }}' => !empty($body['sample']) ? $body['sample'] : ""
         ));
 
     }
@@ -308,8 +321,8 @@ class Builder
     /**
      * Generate route paramteres form
      *
-     * @param  array      $st_params
-     * @param  integer    $counter
+     * @param array $st_params
+     * @param integer $counter
      * @return void|mixed
      */
     protected function generateSandboxForm($st_params, $counter)
@@ -319,38 +332,34 @@ class Builder
 
         $sandboxFormInputTpl = $this->loadPartialTemplate('sandboxFormInputTpl');
 
-        if (isset($st_params['ApiParams']) && is_array($st_params['ApiParams']))
-        {
-            foreach ($st_params['ApiParams'] as $param)
-            {
+        if (isset($st_params['ApiParams']) && is_array($st_params['ApiParams'])) {
+            foreach ($st_params['ApiParams'] as $param) {
                 $params[] = strtr($sandboxFormInputTpl, [
-                    '{{ type }}' => $param['type'],
-                    '{{ name }}' => $param['name'],
-                    '{{ description }}' => $param['description'],
-                    '{{ sample }}' => $param['sample']
+                    '{{ type }}' => !empty($param['type']) ? $param['type'] : "",
+                    '{{ name }}' => !empty($param['name']) ? $param['name'] : "",
+                    '{{ description }}' => !empty($param['description']) ? $param['description'] : "",
+                    '{{ sample }}' => !empty($param['sample']) ? $param['sample'] : "",
                 ]);
             }
         }
 
-        if (isset($st_params['ApiHeaders']) && is_array($st_params['ApiHeaders']))
-        {
-            foreach ($st_params['ApiHeaders'] as $header)
-            {
+        if (isset($st_params['ApiHeaders']) && is_array($st_params['ApiHeaders'])) {
+            foreach ($st_params['ApiHeaders'] as $header) {
                 $headers[] = strtr($sandboxFormInputTpl, [
                     '{{ type }}' => 'text',
-                    '{{ name }}' => $header['name'],
-                    '{{ description }}' => $header['description'],
-                    '{{ sample }}' => $header['sample']
+                    '{{ name }}' => !empty($header['name']) ? $header['name'] : "",
+                    '{{ description }}' => !empty($header['description']) ? $header['description'] : "",
+                    '{{ sample }}' => !empty($header['sample']) ? $header['sample'] : ""
                 ]);
             }
         }
 
         $tr = array(
             '{{ elt_id }}' => $counter,
-            '{{ method }}' => $st_params['ApiMethod'][0]['type'],
-            '{{ route }}'  => $st_params['ApiRoute'][0]['name'],
+            '{{ method }}' => !empty($st_params['ApiMethod'][0]['type']) ? $st_params['ApiMethod'][0]['type'] : "",
+            '{{ route }}' => !empty($st_params['ApiRoute'][0]['name']) ?: "",
             '{{ headers }}' => implode(PHP_EOL, $headers),
-            '{{ params }}'   => implode(PHP_EOL, $params),
+            '{{ params }}' => implode(PHP_EOL, $params),
         );
 
         return strtr($this->loadPartialTemplate('sandboxFormTpl'), $tr);
@@ -359,23 +368,21 @@ class Builder
     /**
      * Generates a badge for method
      *
-     * @param  array  $data
+     * @param array $data
      * @return string
      */
     protected function generateBadgeForMethod($data)
     {
-        $method = strtoupper($data['ApiMethod'][0]['type']);
-
+        $method = strtoupper(!empty($data['ApiMethod'][0]['type']) ? $data['ApiMethod'][0]['type'] : "");
         $st_labels = [
-            'POST'   => 'label-primary',
-            'GET'    => 'label-success',
-            'PUT'    => 'label-warning',
+            'POST' => 'label-primary',
+            'GET' => 'label-success',
+            'PUT' => 'label-warning',
             'DELETE' => 'label-danger',
-            'PATCH'  => 'label-default',
-            'OPTIONS'=> 'label-info'
+            'PATCH' => 'label-default',
+            'OPTIONS' => 'label-info'
         ];
-
-        return '<span class="label '.$st_labels[$method].'">'.$method.'</span>';
+        return '<span class="label ' . $st_labels[$method] . '">' . $method . '</span>';
     }
 
     /**
@@ -386,7 +393,7 @@ class Builder
      */
     public function loadPartialTemplate($s_name)
     {
-        $content = file_get_contents($this->template_path."/partial/".$s_name.".html");
+        $content = file_get_contents($this->template_path . "/partial/" . $s_name . ".html");
 
         return $content;
     }
@@ -394,7 +401,7 @@ class Builder
     /**
      * Output the annotations in json format
      *
-     * @return json
+     * @return JsonView
      */
     public function renderJson()
     {

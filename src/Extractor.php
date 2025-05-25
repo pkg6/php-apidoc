@@ -61,8 +61,9 @@ class Extractor
     /**
      * Gets all anotations with pattern @SomeAnnotation() from a given class
      *
-     * @param  string $className class name to get annotations
+     * @param string $className class name to get annotations
      * @return array  self::$annotationCache all annotated elements
+     * @throws \ReflectionException
      */
     public static function getClassAnnotations($className)
     {
@@ -74,6 +75,11 @@ class Extractor
         return self::$annotationCache[$className];
     }
 
+    /**
+     * @param $className
+     * @return mixed
+     * @throws \ReflectionException
+     */
     public static function getAllClassAnnotations($className)
     {
         $class = new \ReflectionClass($className);
@@ -113,9 +119,10 @@ class Extractor
      * Gets all anotations with pattern @SomeAnnotation() from a determinated method of a given class
      * and instance its abcAnnotation class
      *
-     * @param  string $className  class name
-     * @param  string $methodName method name to get annotations
+     * @param string $className class name
+     * @param string $methodName method name to get annotations
      * @return array  self::$annotationCache all annotated objects of a method given
+     * @throws Exception
      */
     public function getMethodAnnotationsObjects($className, $methodName)
     {
@@ -157,6 +164,11 @@ class Extractor
         return $objects;
     }
 
+    /**
+     * @param $docblockMethod
+     * @param $dockblockClass
+     * @return array
+     */
     private static function consolidateAnnotations ($docblockMethod, $dockblockClass)
     {
         $methodAnnotations = self::parseAnnotations($docblockMethod);
@@ -188,12 +200,12 @@ class Extractor
     }
 
 
-
     /**
      * Parse annotations
      *
-     * @param  string $docblock
+     * @param string $docblock
      * @return array  parsed annotations params
+     * @throws Exception
      */
     private static function parseAnnotations($docblock)
     {
@@ -225,8 +237,9 @@ class Extractor
     /**
      * Parse individual annotation arguments
      *
-     * @param  string $content arguments string
+     * @param string $content arguments string
      * @return array  annotated arguments
+     * @throws Exception
      */
     private static function parseArgs($content)
     {
